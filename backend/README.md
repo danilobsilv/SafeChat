@@ -1,57 +1,79 @@
----
-
-Sim, com certeza! Aqui está o `README.md` completo no formato Markdown, pronto para você copiar e colar no seu projeto.
-
----
-
 # Backend do Safe Chat (Python, FastAPI, SQLite, TLS)
 
-Este repositório contém o backend do Safe Chat, desenvolvido em Python usando **FastAPI** para as APIs REST e WebSockets, e **SQLAlchemy** para persistência de dados em um banco SQLite. A aplicação inclui funcionalidades de autenticação básica (registro/login), envio e recebimento de mensagens em tempo real, e está configurada para usar **TLS (Transport Layer Security)** para comunicação segura via HTTPS e WSS.
+Este repositório contém o backend do Safe Chat, desenvolvido em Python usando **FastAPI** para as APIs REST e WebSockets, e **SQLAlchemy** para persistência de dados em um banco SQLite. A aplicação foi projetada para suportar um **chat individual e seguro**, com um fluxo de criptografia específico onde o servidor atua como um intermediário confiável. O backend está configurado para usar **TLS (Transport Layer Security)** para comunicação segura via HTTPS e WSS.
 
 ---
 
-## Estrutura do Projeto
+## 🚀 Visão Geral do Projeto
+
+O backend do Safe Chat gerencia a autenticação de usuários, o armazenamento de chaves criptográficas, a persistência de mensagens e a retransmissão em tempo real.
+
+* **Autenticação e Geração de Chaves**: No registro/login, o backend gera um par de chaves RSA (pública e privada) para cada usuário. A chave pública é fornecida ao frontend, e a chave privada é armazenada no banco de dados (em formato hexadecimal, **não criptografada por uma chave mestra do servidor neste exemplo**).
+* **Armazenamento de Chaves em Hexadecimal**: Chaves públicas e privadas são serializadas para o formato DER (binário) e armazenadas como strings hexadecimais no banco de dados.
+* **Chat Individual Protegido (Server-Side Decryption)**:
+    * Recebe mensagens cifradas do frontend via WebSocket.
+    * **Descriptografa a mensagem** usando a **chave privada do *remetente original*** (armazenada no servidor).
+    * Verifica a integridade da mensagem usando um hash SHA256 (fornecido pelo remetente).
+    * Salva a mensagem cifrada original no banco de dados.
+    * Retransmite a mensagem **em texto claro** para o destinatário e para o próprio remetente (para que ambos vejam a conversa).
+    * **Importante**: Neste fluxo, o servidor tem acesso ao conteúdo das mensagens em texto claro. **Isso NÃO é criptografia de ponta a ponta (E2EE)**, mas segue o modelo definido para permitir verificação e persistência centralizada.
+* **Histórico de Mensagens**: Fornece um endpoint para carregar mensagens trocadas entre dois usuários específicos, já descriptografadas pelo servidor.
+* **Atualização de Usuários em Tempo Real**: Notifica todos os clientes WebSocket conectados quando um novo usuário se registra, permitindo que as listas de contatos sejam atualizadas dinamicamente.
+* **Comunicação Segura (TLS)**: Todas as comunicações REST e WebSocket são protegidas por TLS.
+
+---
+
+## 🛠️ Tecnologias Principais
+
+* **Python 3.8+**: Linguagem de programação principal.
+* **FastAPI**: Framework web moderno e de alta performance para construir APIs REST e WebSockets.
+* **Uvicorn**: Servidor ASGI para executar a aplicação FastAPI de forma assíncrona e eficiente.
+* **SQLAlchemy**: ORM (Object Relational Mapper) para interação com o banco de dados SQLite.
+* **Pydantic**: Biblioteca de validação de dados, utilizada para modelar a entrada e saída das APIs.
+* **`cryptography`**: Biblioteca poderosa para operações criptográficas (RSA, AES, hashing, serialização de chaves).
+* **SQLite**: Banco de dados relacional leve e embutido, ideal para desenvolvimento local.
+* **OpenSSL**: Ferramenta de linha de comando para gerar e gerenciar certificados SSL/TLS.
+
+---
+
+## 📂 Estrutura do Projeto
 
 A estrutura do projeto é modular para facilitar a organização e manutenção do código:
 
 ```
+
 python-backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py           # Ponto de entrada da aplicação FastAPI e definições de rotas
-│   ├── database.py       # Configuração da conexão com o banco de dados SQLite
-│   ├── models.py         # Definição dos modelos de dados (SQLAlchemy ORM) para Usuários e Mensagens
-│   ├── schemas.py        # Modelos de dados para validação (Pydantic) de entrada/saída da API
-│   └── crud.py           # Funções de operações CRUD (Create, Read, Update, Delete) com o banco de dados
-├── certs/                # Diretório para armazenar os certificados TLS (chave e certificado)
+│   ├── **init**.py
+│   ├── main.py           \# Ponto de entrada da aplicação FastAPI, definições de rotas e lógica criptográfica central.
+│   ├── database.py       \# Configuração da conexão com o banco de dados SQLite.
+│   ├── models.py         \# Definição dos modelos de dados (SQLAlchemy ORM) para Usuários e Mensagens, incluindo chaves.
+│   ├── schemas.py        \# Modelos de dados para validação (Pydantic) de entrada/saída da API.
+│   └── crud.py           \# Funções de operações CRUD (Create, Read, Update, Delete) com o banco de dados.
+├── certs/                \# Diretório para armazenar os certificados TLS (chave e certificado do servidor).
 │   ├── server.key
 │   └── server.crt
-├── requirements.txt      # Lista de dependências Python
-└── README.md             # Este arquivo
-```
+├── requirements.txt      \# Lista de dependências Python.
+└── README.md             \# Este arquivo.
+
+````
 
 ---
 
-## Tecnologias Utilizadas
+## 🔒 Comunicação Segura e Criptografia
 
-* **FastAPI**: Framework web moderno e de alta performance para construir APIs com Python, baseado em tipos (type hints).
-* **Uvicorn**: Servidor ASGI para executar a aplicação FastAPI de forma assíncrona e eficiente.
-* **SQLAlchemy**: Toolkit SQL e ORM (Object Relational Mapper) para interagir com o banco de dados SQLite.
-* **Pydantic**: Biblioteca de validação de dados usada pelo FastAPI para garantir a integridade dos dados.
-* **OpenSSL**: Ferramenta de linha de comando para gerar e gerenciar certificados SSL/TLS.
-* **SQLite**: Banco de dados relacional leve e embutido, ideal para desenvolvimento local e aplicações menores.
+O backend é o ponto central para a segurança da comunicação das mensagens:
 
----
-
-## TLS (Transport Layer Security) na Aplicação
-
-A aplicação está configurada para usar **TLS (Transport Layer Security)**, o que garante que toda a comunicação entre o frontend (React) e o backend (FastAPI) seja **criptografada**. Isso protege os dados em trânsito de serem interceptados e lidos por terceiros.
-
-No ambiente de desenvolvimento, utilizamos **certificados autoassinados** gerados com **OpenSSL**. Isso significa que você mesmo é a "Autoridade Certificadora" que emitiu o certificado do seu servidor. Por padrão, navegadores não confiam em certificados autoassinados, o que resultará no erro `net::ERR_CERT_AUTHORITY_INVALID` ao tentar acessar o backend via HTTPS/WSS pela primeira vez.
-
-**Para contornar isso em desenvolvimento**, você precisará aceitar manualmente o certificado do backend no seu navegador. Basta navegar diretamente para a URL do seu backend (`https://localhost:8000/`) e aceitar o aviso de segurança (clicando em "Avançado" e depois em "Prosseguir para localhost" ou similar). Feito isso uma vez, o navegador confiará temporariamente na conexão para futuras requisições do seu frontend.
-
-**Em um ambiente de produção**, você **DEVERÁ** usar certificados emitidos por uma Autoridade Certificadora (CA) reconhecida globalmente (como Let's Encrypt), e geralmente um proxy reverso (como Nginx ou Caddy) seria configurado para gerenciar o TLS.
+* **TLS (Transport Layer Security)**: Todas as conexões HTTPs e WebSockets (WSS) são criptografadas. Em ambiente de desenvolvimento, são utilizados **certificados autoassinados** gerados com OpenSSL. Isso exige que o navegador confie explicitamente nesses certificados na primeira vez (visitando `https://localhost:8000/` e aceitando o aviso de segurança).
+* **Geração de Chaves RSA (2048-bit)**: Para cada novo usuário, um par de chaves RSA é gerado.
+    * A chave pública (formato SPKI DER) é convertida para hexadecimal (`public_key`) e armazenada no banco de dados. É retornada ao frontend no login.
+    * A chave privada (formato PKCS#8 DER) é convertida para hexadecimal (`private_key_encrypted`) e **armazenada diretamente no banco de dados**.
+        * **AVISO DE SEGURANÇA (APENAS PARA DESENVOLVIMENTO):** A chave privada é armazenada em texto claro (hexadecimal) no banco de dados. Em um ambiente de produção, a chave privada **NUNCA** deve ser armazenada sem criptografia forte (ex: usando um KMS, HSM ou criptografia com chave mestra do servidor). Este design simplificado é apenas para fins didáticos e de desenvolvimento.
+* **Descriptografia e Verificação de Integridade (no Servidor)**:
+    * Ao receber uma mensagem cifrada via WebSocket (cifrada com a chave pública do remetente), o backend recupera a chave privada do *remetente* do banco de dados.
+    * A mensagem é descriptografada usando essa chave privada (RSA-OAEP).
+    * O hash SHA256 da mensagem original é verificado para garantir que a mensagem não foi adulterada.
+    * A mensagem (agora em texto claro) é preparada e retransmitida para o destinatário e o remetente.
 
 ---
 
@@ -74,9 +96,9 @@ Se este backend estiver em um repositório separado:
 ```bash
 git clone <url_do_seu_repositorio_backend>
 cd python-backend
-```
+````
 
-### 3. Instalar Dependências Python
+### 3\. Instalar Dependências Python
 
 Na raiz do diretório `python-backend/`, instale as dependências listadas no `requirements.txt`:
 
@@ -84,7 +106,7 @@ Na raiz do diretório `python-backend/`, instale as dependências listadas no `r
 pip install -r requirements.txt
 ```
 
-### 4. Gerar Certificados TLS com OpenSSL
+### 4\. Gerar Certificados TLS com OpenSSL
 
 Navegue até o diretório `python-backend/` no seu terminal e crie uma pasta `certs` se ela não existir.
 
@@ -104,20 +126,22 @@ openssl req -new -x509 -key certs/server.key -out certs/server.crt -days 365 -su
 
 Você terá os arquivos `certs/server.key` e `certs/server.crt` dentro da pasta `certs`.
 
-### 5. Executar a Aplicação com TLS (HTTPS/WSS)
+### 5\. Executar a Aplicação com TLS (HTTPS/WSS)
 
 Com os certificados gerados, inicie o servidor Uvicorn a partir da raiz do diretório `python-backend/`:
 
 ```powershell
-uvicorn app.main:app --reload --ssl-keyfile=certs/server.key --ssl-certfile=certs/server.crt
+uvicorn app.main:app --reload --ssl-keyfile=certs/server.key --ssl-certfile=certs/server.crt --host 0.0.0.0 --port 8000
 ```
 
-* `--reload`: Recarrega o servidor automaticamente ao detectar mudanças no código (ótimo para desenvolvimento).
-* `--ssl-keyfile` e `--ssl-certfile`: Apontam para os arquivos de chave privada e certificado que você acabou de gerar.
+  * `--reload`: Recarrega o servidor automaticamente ao detectar mudanças no código (ótimo para desenvolvimento).
+  * `--ssl-keyfile` e `--ssl-certfile`: Apontam para os arquivos de chave privada e certificado que você acabou de gerar.
+  * `--host 0.0.0.0`: Permite que o servidor seja acessível de todas as interfaces de rede (incluindo `localhost`).
+  * `--port 8000`: Define a porta em que o servidor escutará.
 
 Seu backend agora estará acessível via `https://localhost:8000` para APIs REST e `wss://localhost:8000/ws` para WebSockets.
 
----
+-----
 
 ## Endpoints da API REST
 
@@ -125,72 +149,78 @@ Acesse `https://localhost:8000/docs` no seu navegador para ver a documentação 
 
 ### Autenticação/Registro de Usuário
 
-* **`POST /register-or-login`**
-    * **Descrição**: Permite que um usuário se registre ou faça login. Se o `username` já existir, verifica a senha. Caso contrário, cria um novo usuário.
-    * **Corpo da Requisição (JSON)**:
+  * **`POST /register-or-login`**
+      * **Descrição**: Permite que um usuário se registre ou faça login. Se o `username` já existir, verifica a senha. Caso contrário, cria um novo usuário e um par de chaves RSA para ele. Retorna o UUID do usuário, username e sua **chave pública (em hexadecimal)**.
+      * **Corpo da Requisição (JSON)**:
         ```json
         {
           "username": "seu_nome_de_usuario",
           "password": "sua_senha_secreta"
         }
         ```
-    * **Resposta (JSON)**:
+      * **Resposta (JSON)**:
         ```json
         {
           "id": "uuid-do-usuario-gerado",
-          "username": "seu_nome_de_usuario"
+          "username": "seu_nome_de_usuario",
+          "public_key": "hexadecimal_da_chave_publica_do_usuario"
         }
         ```
-        **Importante**: O `id` retornado é o UUID do usuário, necessário para enviar mensagens via WebSocket.
 
-### Listar Mensagens
+### Listar Usuários
 
-* **`GET /messages`**
-    * **Descrição**: Retorna uma lista de todas as mensagens públicas já enviadas no sistema.
-    * **Resposta (JSON - Exemplo)**:
+  * **`GET /users`**
+      * **Descrição**: Retorna uma lista de todos os usuários registrados no sistema, incluindo seus IDs, nomes de usuário e chaves públicas (em hexadecimal). Essencial para o frontend construir a lista de contatos.
+      * **Resposta (JSON - Exemplo)**:
         ```json
         [
           {
-            "id": "uuid-da-mensagem-1",
-            "content": "Olá a todos!",
-            "created_at": "2024-07-20T10:30:00.123456",
-            "username": "Json"
+            "id": "uuid-do-usuario-1",
+            "username": "Json",
+            "public_key": "hex_da_chave_publica_Json"
           },
           {
-            "id": "uuid-da-mensagem-2",
-            "content": "Bem-vindos ao chat seguro!",
-            "created_at": "2024-07-20T10:31:15.789012",
-            "username": "Bob"
+            "id": "uuid-do-usuario-2",
+            "username": "Bob",
+            "public_key": "hex_da_chave_publica_bob"
           }
         ]
         ```
 
----
+### Listar Mensagens de Conversa
 
-## Funcionalidade WebSocket (Chat em Tempo Real)
+  * **`GET /messages/{user1_id}/{user2_id}`**
+      * **Descrição**: Retorna todas as mensagens trocadas entre `user1_id` e `user2_id`. O backend descriptografa cada mensagem com a chave privada do remetente original e verifica sua integridade antes de retorná-la.
+      * **Resposta (JSON - Exemplo)**:
+        ```json
+        [
+          {
+            "id": "uuid-da-mensagem-1",
+            "content": "Olá, Bob!",                 # Conteúdo já descriptografado
+            "created_at": "2024-07-20T10:30:00.123456",
+            "sender_id": "uuid-Json",
+            "sender_username": "Json",
+            "recipient_id": "uuid-bob",
+            "recipient_username": "Bob",
+            "is_integrity_valid": true              # Resultado da verificação de hash
+          }
+        ]
+        ```
 
-* **Endpoint**: `wss://localhost:8000/ws`
-* **Conexão**: Todos os clientes se conectam a uma **sala de chat única**. Não há salas separadas.
-* **Envio de Mensagens**:
-    * Clientes enviam mensagens no formato JSON através da conexão WebSocket.
-    * **Formato da Mensagem (JSON)**:
-        ```json
-        {
-          "content": "Minha mensagem para o chat",
-          "user_id": "uuid-do-usuario-logado"
-        }
-        ```
-        (O `user_id` é o UUID obtido no endpoint `/register-or-login`).
-* **Recebimento de Mensagens**:
-    * Toda mensagem enviada por qualquer cliente é salva no banco de dados.
-    * Após ser salva, a mensagem é **transmitida (broadcast)** para todos os clientes WebSocket conectados.
-    * **Formato da Mensagem Recebida (JSON)**:
-        ```json
-        {
-          "id": "uuid-da-mensagem-salva",
-          "content": "Minha mensagem para o chat",
-          "created_at": "2024-07-20T10:35:00.000000",
-          "username": "NomeDoUsuario"
-        }
-        ```
----
+-----
+
+## Funcionalidade WebSocket
+
+  * **Endpoint**: `wss://localhost:8000/ws/{user_id}`
+      * O `user_id` na URL identifica a conexão WebSocket para roteamento de mensagens privadas.
+  * **Tipos de Mensagem WebSocket**: O backend processa diferentes tipos de mensagens WebSocket baseadas no campo `type` do JSON recebido.
+      * **`CHAT_MESSAGE`**:
+          * **Envio do Frontend**: Espera um `payload` com `encrypted_content` (cifrado com a **chave pública do REMETENTE**), `message_hash`, `sender_id` e `recipient_id`.
+          * **Processamento do Backend**: Descriptografa `encrypted_content` usando a chave privada do remetente, verifica o `message_hash`, salva a mensagem original cifrada no DB.
+          * **Retransmissão**: Envia a mensagem **descriptografada e verificada** (`type: CHAT_MESSAGE`, `payload: MessageDecryptedOut`) para o remetente e o destinatário via suas conexões WebSocket ativas.
+      * **`NEW_USER_REGISTERED`**:
+          * **Origem**: Gerada pelo backend quando um novo usuário se registra.
+          * **Broadcast**: Transmitida para *todos* os clientes WebSocket conectados.
+          * **Payload**: Contém os dados do novo usuário (ID, username, public\_key) para que o frontend possa atualizar suas listas de contatos em tempo real.
+
+-----
