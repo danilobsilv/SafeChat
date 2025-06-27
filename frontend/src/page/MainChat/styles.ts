@@ -40,16 +40,61 @@ export const SectionLogged = styled.section`
     }
 `
 
-export const SectionChat = styled.section`
+export const ContainerChat = styled.section`
     display: flex;
+    flex-direction: row;
     width: 80%;
     height: max-content;
-    flex-direction: column;
     margin-top: 20px;
     padding: 20px;
     background-color:var(--background-secondary-color) ;
     border-radius: 10px;
+`
 
+export const SectionChatList = styled.div`
+    display: flex;
+    width: 20%;
+    height: 100%;
+    overflow-y: auto;
+    flex-direction: column;
+    margin: 0 5px;
+
+    h2 {
+        margin: auto;
+    }
+
+`
+
+export const UserListArea = styled.div`
+    display: flex;
+    flex-direction: column;
+    height: 350px;
+    overflow-y: auto;
+    background-color: #FFF;
+    padding: 5px;
+    border-radius: 10px;
+
+`
+
+export const UserCard = styled.button`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    padding: 10px;
+    color: #DDD;
+    border-radius: 10px;
+    background-color: var(--background-color);
+    margin-bottom: 5px;
+`
+
+
+
+export const SectionChat = styled.div`
+    display: flex;
+    width: 80%;
+    height: max-content;
+    flex-direction: column;
 `
 
 export const ChatArea = styled.div`

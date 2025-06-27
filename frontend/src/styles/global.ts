@@ -60,6 +60,10 @@ export default createGlobalStyle`
     border-width: 0;
     background-color: var(--button-color) ;
     color: var(--text-secondary-color);
+    
+    &:hover{
+      opacity: 80%;
+    }
   }
 
 
